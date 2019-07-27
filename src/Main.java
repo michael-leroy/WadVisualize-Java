@@ -1,4 +1,8 @@
+import javafx.scene.control.RadioMenuItem;
+
 import java.io.RandomAccessFile;
+import java.util.ArrayList;
+import java.util.List;
 
 public class Main {
     public static void main(final String[] argv) {
@@ -38,7 +42,7 @@ public class Main {
             WadLump testFileFromWad = WadReader.getLump(doomSharewareFile, directoryPointer);
             System.out.println(testFileFromWad.getFileName());
             System.out.println(testFileFromWad.getFileSizeBytes());
-            System.out.println(WadReader.wadLS(doomSharewareFile));
+            //System.out.println(WadReader.wadLS(doomSharewareFile));
         } catch (java.io.FileNotFoundException e) {
             e.printStackTrace();
         } catch (java.io.IOException f) {
@@ -53,6 +57,21 @@ public class Main {
 
         } else {
             System.out.println("Something went wrong. Wad not valid.");
+        }
+
+        try (RandomAccessFile doomSharewareFile = new RandomAccessFile(doomSharewarePath, "r")) {
+
+            List<WadMap> allDoomMaps = WadReader.getMaps(doomSharewareFile);
+
+            System.out.println(allDoomMaps.size());
+
+            for (WadMap aWadMap : allDoomMaps) {
+                System.out.print("Map name: ");
+                System.out.println(aWadMap.getMapName());
+            }
+
+        } catch (java.io.IOException e) {
+            System.out.println(e);
         }
 
 
