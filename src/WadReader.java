@@ -4,6 +4,9 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class WadReader {
 
@@ -45,7 +48,17 @@ public class WadReader {
     public static String getStringFromWad(RandomAccessFile wadFile, int stringPointer, int stringSize) throws java.io.IOException {
 
         wadFile.seek(stringPointer);
-        return new String(getLumpDataBytes(wadFile, stringPointer, stringSize));
+
+        StringBuilder fileName = new StringBuilder();
+
+        byte[] rawByteFileName = getLumpDataBytes(wadFile, stringPointer, stringSize);
+
+        // Some file names like E1M1 have trailing zero byte chars. We will trim those off.
+        for (byte aByte : rawByteFileName) {
+            if (aByte > 0) { fileName.append((char)aByte); }
+        }
+
+        return fileName.toString();
 
     }
 
@@ -73,6 +86,54 @@ public class WadReader {
 
     }
 
+    public static List<WadMap> getMaps(RandomAccessFile wadFile) {
+
+        List<WadMap> allWadMaps = new ArrayList<>();
+
+        Pattern mapRegex = Pattern.compile("^E[1-4]M[0-9]$|^MAP\\d\\d$");
+
+        HashSet<String> mapsDiscovered = new HashSet<>(Arrays.asList());
+
+        int mapCounter = 0;
+
+        List<WadLump> allWadLumps = getAllWadLumps(wadFile);
+
+        for (WadLump wadLump : allWadLumps) {
+
+            Matcher isMapRegex = mapRegex.matcher(wadLump.getFileName());
+            boolean isMap = isMapRegex.find();
+            System.out.println(isMap);
+
+            if (isMap) {
+                System.out.println(wadLump.getFileName());
+                WadMap tempWadMap = new WadMap(wadLump);
+
+                allWadMaps.add(tempWadMap);
+
+                mapsDiscovered.add(wadLump.getFileName());
+                //System.out.println(allWadMaps.get(mapCounter).mapData.get("E1M1").getFileName());
+
+            // TODO: Find an improved way of finding the next map.
+            } else if (wadLump.getFileName().equals("BLOCKMAP")) {
+                System.out.println("matched BLOCKMAP");
+                allWadMaps.get(mapCounter).mapData.put(wadLump.getFileName(), wadLump);
+                mapCounter += 1;
+
+            }else if (WadMap.isValidMapLump(wadLump.getFileName())) {
+                System.out.println("Adding map asset...");
+                System.out.println(wadLump.getFileName());
+                allWadMaps.get(mapCounter).mapData.put(wadLump.getFileName(), wadLump);
+
+            } else {
+                System.out.print("Didn't match... ");
+                System.out.println(wadLump.getFileName());
+            }
+
+        }
+
+        return allWadMaps;
+    }
+
     public static String wadLS(RandomAccessFile wadFile) {
 
         //Intended format <lump name> <lump size> <lump pointer>
@@ -90,9 +151,6 @@ public class WadReader {
         // in the directory.
         int pointerOffset = 0;
         for (int i = 0; i < numberOfLumps; i++) {
-
-
-            byte[] lumpName = new byte[8];
 
             try {
 
@@ -165,6 +223,61 @@ public class WadReader {
         return new WadLump(fileData, fileSize, fileName);
 
     }
+
+    public static List<WadLump> getAllWadLumps(RandomAccessFile wadFile) {
+
+        int directoryPointer = 0;
+        int numberOfLumps = 0;
+
+        try {
+            directoryPointer = getDirectoryPointer(wadFile);
+            numberOfLumps = getNumLumps(wadFile);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        List<WadLump> allWadLumps = new ArrayList<>();
+
+        // Each loop increment by 16, the length of each descriptor
+        // in the directory.
+        int pointerOffset = 0;
+
+        for (int i = 0; i < numberOfLumps; i++) {
+
+            //Jumping ahead 8 bytes to get lump name first
+            // Appending lump file name.
+            pointerOffset += 8;
+
+            try {
+
+                String lumpName = getStringFromWad(wadFile, directoryPointer + pointerOffset, 8);
+
+                // Going back 4 bytes to read the lump size.
+                pointerOffset -= 4;
+
+                int lumpSize = wadByteToInt(wadFile, directoryPointer + pointerOffset);
+
+                // Going back 4 bytes to read the pointer int.
+                pointerOffset -= 4;
+
+
+                int lumpPointer = wadByteToInt(wadFile, directoryPointer + pointerOffset);
+
+                byte[] lumpData = getLumpDataBytes(wadFile, lumpPointer, lumpSize);
+                WadLump tempWadLump = new WadLump(lumpData, lumpSize, lumpName);
+
+                allWadLumps.add(tempWadLump);
+
+                // Jump ahead 16 bytes to capture next lump.
+                pointerOffset += 16;
+
+            } catch (java.io.IOException e) {
+                System.out.println(e);
+            }
+        }
+        return allWadLumps;
+    }
+
     public static byte[] getLumpDataBytes(RandomAccessFile wadFile, int fileOffset, int fileSize)
             throws java.io.IOException {
         wadFile.seek(fileOffset);
@@ -189,14 +302,8 @@ public class WadReader {
 
         wadFile.read(numberOfLumps, 0, 4);
 
-        //byte[] lumpNumber = convertToLittleEndian(numberOfLumps);
-        //ByteBuffer bb = ByteBuffer.wrap(numberOfLumps);
-        //bb.order(ByteOrder.LITTLE_ENDIAN);
-
-        //return new BigInteger(lumpNumber).intValue();
         return convertToLittleEndianInts(numberOfLumps);
     }
-
 
 
 
