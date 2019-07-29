@@ -1,7 +1,6 @@
-import javafx.scene.control.RadioMenuItem;
 
+import java.awt.geom.Line2D;
 import java.io.RandomAccessFile;
-import java.util.ArrayList;
 import java.util.List;
 
 public class Main {
@@ -70,6 +69,19 @@ public class Main {
                 System.out.println(aWadMap.getMapName());
             }
 
+            List<Line2D.Double> e1m1Lines = WadReader.getLINEDEFS(allDoomMaps.get(0));
+
+            for (Line2D.Double aLine : e1m1Lines) {
+                System.out.print("Line: ");
+                System.out.print(aLine.getX1());
+                System.out.print(",");
+                System.out.print(aLine.getY1());
+                System.out.print(" ");
+                System.out.print(aLine.getX2());
+                System.out.print(".");
+                System.out.println(aLine.getY2());
+            }
+
         } catch (java.io.IOException e) {
             System.out.println(e);
         }
@@ -77,6 +89,8 @@ public class Main {
 
 
         MapGui theGui = new MapGui();
+
+
 
     }
 }
