@@ -1,3 +1,4 @@
+import java.awt.geom.Line2D;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
@@ -85,6 +86,27 @@ public class WadReader {
         return bb.getInt();
 
     }
+    public static short convertToLittleEndianSignedShort(byte[] bytesToConvert) {
+        ByteBuffer bb = ByteBuffer.wrap(bytesToConvert);
+        bb.order(ByteOrder.LITTLE_ENDIAN);
+
+        return bb.getShort();
+
+
+    }
+
+    public static char convertToLittleEndianUnsignedShort(byte[] bytesToConvert) {
+        ByteBuffer bb = ByteBuffer.wrap(bytesToConvert);
+        bb.order(ByteOrder.LITTLE_ENDIAN);
+
+        //int testX = ((char) bytesToConvert[0]) | (((char) bytesToConvert[1]) << 8);
+
+        System.out.println();
+
+        return bb.getChar();
+        //return (char)((bytesToConvert[0] & 0xFF | bytesToConvert[1] & 0xFF) >> 4 );
+
+    }
 
     public static List<WadMap> getMaps(RandomAccessFile wadFile) {
 
@@ -132,6 +154,97 @@ public class WadReader {
         }
 
         return allWadMaps;
+    }
+
+    public static List<DVertex> getAllVERTEX(WadLump vertexLUMP) {
+
+        byte[] vertLumpData = vertexLUMP.getFileContents();
+
+        List<DVertex> returnList = new ArrayList<>();
+
+        int lumpOffset = 0;
+
+        while (lumpOffset < vertexLUMP.getFileSizeBytes()) {
+            DVertex tempDVertex = new DVertex();
+
+            byte[] xBucket = new byte[2];
+            byte[] yBucket = new byte[2];
+
+            // Each X and Y is 2 bytes long.
+
+            // Getting X in vertex.
+            xBucket[0] = vertLumpData[lumpOffset];
+            xBucket[1] = vertLumpData[lumpOffset + 1];
+
+            // Jumping ahead for Y coord
+            lumpOffset += 2;
+
+            yBucket[0] = vertLumpData[lumpOffset];
+            yBucket[1] = vertLumpData[lumpOffset + 1];
+
+            tempDVertex.setX(convertToLittleEndianSignedShort(xBucket));
+            tempDVertex.setY(convertToLittleEndianSignedShort(yBucket));
+
+            returnList.add(tempDVertex);
+
+            // Jumping ahead for next loop
+            lumpOffset += 2;
+
+
+
+
+        }
+        return returnList;
+    }
+
+    public static List<Line2D.Double> getLINEDEFS(WadMap wadMap) {
+
+        List<DVertex> mapVertexes = getAllVERTEX(wadMap.mapData.get("VERTEXES"));
+
+        WadLump mapLineSegsLump = wadMap.mapData.get("LINEDEFS");
+
+        byte[] lineDefsFromLump = mapLineSegsLump.getFileContents();
+
+        List<Line2D.Double> returnList = new ArrayList<>();
+
+        int lumpOffset = 0;
+
+        while (lumpOffset < mapLineSegsLump.getFileSizeBytes()) {
+
+            byte[] startVertexRaw = new byte[2];
+            char startVertex;
+
+            byte[] endVertexRaw = new byte[2];
+            char endVertex;
+
+            startVertexRaw[0] = lineDefsFromLump[lumpOffset];
+            startVertexRaw[1] = lineDefsFromLump[lumpOffset + 1];
+            startVertex = convertToLittleEndianUnsignedShort(startVertexRaw);
+
+            int testSV = (char)startVertex;
+
+            //Read next two bytes for end vertex.
+            lumpOffset += 2;
+
+            endVertexRaw[0] = lineDefsFromLump[lumpOffset];
+            endVertexRaw[1] = lineDefsFromLump[lumpOffset + 1];
+            endVertex = convertToLittleEndianUnsignedShort(endVertexRaw);
+
+            //Jump head 2 more bytes for next loop
+            // FIX OFFSET!
+            lumpOffset += 12;
+
+            Line2D.Double tempStartLine = new Line2D.Double(
+                    (double)mapVertexes.get(startVertex).getX(),
+                    (double)mapVertexes.get(startVertex).getY(),
+                    (double)mapVertexes.get(endVertex).getX(),
+                    (double)mapVertexes.get(endVertex).getY()
+            );
+
+            returnList.add(tempStartLine);
+
+        }
+        return returnList;
     }
 
     public static String wadLS(RandomAccessFile wadFile) {
