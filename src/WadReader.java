@@ -11,41 +11,41 @@ import java.util.regex.Pattern;
 
 public class WadReader {
 
+    /**
+     * Starting seek position for WAD file.
+     */
     public static final int FILE_START = 0;
 
+    /**
+     * Header used for WAD's in games like Doom.
+     */
     public static final String IWAD_HEADER = "IWAD";
 
-    // Highly doubt I will bother with PWAD support...
+
+    /**
+     * Header for a 'patch' WAD used for modifying the game.
+     * Highly doubt I will bother with PWAD support...
+     */
     public static final String PWAD_HEADER = "PWAD";
 
     /**
      * File offset location for numlumps which specifies the number of lumps in
      * a wad. This is zero indexed.
-     *
      */
     public static final int NUM_LUMPS_FILE_OFFSET = 4;
 
     /**
      * File offset location for the directory which holds
-     *
      */
     public static final int DIRECTORY_POINTER_OFFSET = 8;
 
-
-
-
-
-
-    public static RandomAccessFile wadFile(String filePath)
-            throws java.io.FileNotFoundException {
-
-        Path wPath = Paths.get(filePath);
-
-        return new RandomAccessFile(wPath.toFile(), "r");
-
-    }
-
-
+    /**
+     * @param wadFile WAD file to search for string
+     * @param stringPointer Starting point for the string.
+     * @param stringSize How much of the string to attempt to read.
+     * @return String from WAD file. Usually a file name.
+     * @throws java.io.IOException
+     */
     public static String getStringFromWad(RandomAccessFile wadFile, int stringPointer, int stringSize) throws java.io.IOException {
 
         wadFile.seek(stringPointer);
@@ -63,8 +63,13 @@ public class WadReader {
 
     }
 
-
-
+    /**
+     * Checks to see if a WAD has a valid header. Used to see if the file is sane
+     * and if the other methods will be able to read the file.
+     * @param wadFile WAD file to check if header is valid.
+     * @return True if proper header is found.
+     * @throws java.io.IOException
+     */
     public static boolean checkHeader(RandomAccessFile wadFile) throws java.io.IOException {
 
         String header = getStringFromWad(wadFile, FILE_START, IWAD_HEADER.length());
@@ -72,6 +77,12 @@ public class WadReader {
         return header.equals(IWAD_HEADER) || header.equals(PWAD_HEADER);
     }
 
+    /**
+     * Ensures byte array is translated properly from the bytes in the WAD file.
+     * WAD data is in x86 little endian bytes.
+     * @param bytesToConvert
+     * @return byte array in proper format.
+     */
     public static byte[] convertToLittleEndianBytes(byte[] bytesToConvert) {
         ByteBuffer bb = ByteBuffer.wrap(bytesToConvert);
         bb.order(ByteOrder.LITTLE_ENDIAN);
@@ -79,6 +90,12 @@ public class WadReader {
         return bb.array();
 
     }
+
+    /**
+     * Ensures byte array is translated to proper java string.
+     * @param bytesToConvert byte array that contains the int you wish to translate.
+     * @return WAD --> Java int.
+     */
     public static int convertToLittleEndianInts(byte[] bytesToConvert) {
         ByteBuffer bb = ByteBuffer.wrap(bytesToConvert);
         bb.order(ByteOrder.LITTLE_ENDIAN);
@@ -86,15 +103,25 @@ public class WadReader {
         return bb.getInt();
 
     }
+
+    /**
+     * WAD --> Signed short. This is used often for map/wad VERTEXES.
+     * @param bytesToConvert Usually 2 bytes long. Not enforced.
+     * @return Java Signed short.
+     */
     public static short convertToLittleEndianSignedShort(byte[] bytesToConvert) {
         ByteBuffer bb = ByteBuffer.wrap(bytesToConvert);
         bb.order(ByteOrder.LITTLE_ENDIAN);
 
         return bb.getShort();
-
-
     }
 
+    /**
+     * WADS use unsigned shorts for things like LINESEGS data.
+     * Java has no proper data structure for this so a char is used instead.
+     * @param bytesToConvert Any unsigned WAD short.
+     * @return WAD ushort --> Java char.
+     */
     public static char convertToLittleEndianUnsignedShort(byte[] bytesToConvert) {
         ByteBuffer bb = ByteBuffer.wrap(bytesToConvert);
         bb.order(ByteOrder.LITTLE_ENDIAN);
@@ -108,6 +135,11 @@ public class WadReader {
 
     }
 
+    /**
+     * Returns all Maps contained in a WAD file.
+     * @param wadFile A WAD file.
+     * @return A list of WAD maps represented as a Java object.
+     */
     public static List<WadMap> getMaps(RandomAccessFile wadFile) {
 
         List<WadMap> allWadMaps = new ArrayList<>();
@@ -156,11 +188,20 @@ public class WadReader {
         return allWadMaps;
     }
 
+    /**
+     * Collect all VERTEXES from a lump of the same name.
+     * @param vertexLUMP A VERTEXES lump with the file name 'VERTEXES'
+     * @return If valid lump, list of all vertexes in lump.
+     */
     public static List<DVertex> getAllVERTEX(WadLump vertexLUMP) {
 
         byte[] vertLumpData = vertexLUMP.getFileContents();
 
         List<DVertex> returnList = new ArrayList<>();
+
+        if (! vertexLUMP.getFileName().equals("VERTEXES")) {
+            return  returnList;
+        }
 
         int lumpOffset = 0;
 
@@ -190,13 +231,15 @@ public class WadReader {
             // Jumping ahead for next loop
             lumpOffset += 2;
 
-
-
-
         }
         return returnList;
     }
 
+    /**
+     * Returns all LINEDEFS from a WADMAP.
+     * @param wadMap WAD map complete with LINEDEFS and VERTEXES.
+     * @return All lines used to draw a level map.
+     */
     public static List<Line2D.Double> getLINEDEFS(WadMap wadMap) {
 
         List<DVertex> mapVertexes = getAllVERTEX(wadMap.mapData.get("VERTEXES"));
@@ -247,6 +290,11 @@ public class WadReader {
         return returnList;
     }
 
+    /**
+     * Helper method to print out all files in WAD file like the ls command.
+     * @param wadFile A wad file with proper header.
+     * @return String displaying all WAD file names.
+     */
     public static String wadLS(RandomAccessFile wadFile) {
 
         //Intended format <lump name> <lump size> <lump pointer>
@@ -298,6 +346,13 @@ public class WadReader {
         }
         return files.toString();
     }
+
+    /**
+     * Get lump from known directory pointer position.
+     * @param wadFile
+     * @param directoryPointer
+     * @return WAD lump that contains data, file name and file size.
+     */
     public static WadLump getLump(RandomAccessFile wadFile, int directoryPointer) {
         int filenameStringSize = 8;
 
@@ -337,6 +392,11 @@ public class WadReader {
 
     }
 
+    /**
+     * Collects all WAD lumps in a file. This is sounds, textures, maps, everything.
+     * @param wadFile
+     * @return List of all wad lumps(files) complete with raw byte data.
+     */
     public static List<WadLump> getAllWadLumps(RandomAccessFile wadFile) {
 
         int directoryPointer = 0;
@@ -391,6 +451,14 @@ public class WadReader {
         return allWadLumps;
     }
 
+    /**
+     * Gets lump raw data.
+     * @param wadFile
+     * @param fileOffset A pointer for start point of raw data bytes.
+     * @param fileSize Used to determin how many bytes to grab.
+     * @return Array of x86 little endian bytes.
+     * @throws java.io.IOException
+     */
     public static byte[] getLumpDataBytes(RandomAccessFile wadFile, int fileOffset, int fileSize)
             throws java.io.IOException {
         wadFile.seek(fileOffset);
@@ -401,9 +469,14 @@ public class WadReader {
         return convertToLittleEndianBytes(assetBytes);
     }
 
-
-
-
+    /**
+     * Changes little endian bytes into java int. Used for things like getting file size from the
+     * wad directory.
+     * @param wadFile Valid wad file.
+     * @param fileOffset Pointer for start point of int.
+     * @return byte --> Java int.
+     * @throws java.io.IOException
+     */
     public static int wadByteToInt(RandomAccessFile wadFile, int fileOffset) throws java.io.IOException {
 
         // Wad int's are x86, little endian, 4 byte longs.
@@ -418,17 +491,23 @@ public class WadReader {
         return convertToLittleEndianInts(numberOfLumps);
     }
 
-
-
-
+    /**
+     * Gets number of lumps (wad files) in wad. This can be used to process the wad file/lump directory.
+     * @param wadFile Valid wad file.
+     * @return A count of all the lumps in a directory.
+     * @throws java.io.IOException
+     */
     public static int getNumLumps(RandomAccessFile wadFile) throws java.io.IOException {
 
         return wadByteToInt(wadFile, NUM_LUMPS_FILE_OFFSET);
     }
 
-
-
-
+    /**
+     * Each directory entry has a pointer for where the file data (in bytes) is stored in the wad.
+     * @param wadFile Valid WAD file.
+     * @return A pointer to the start point of the lump/files data.
+     * @throws java.io.IOException
+     */
     public static int getDirectoryPointer(RandomAccessFile wadFile) throws java.io.IOException {
         return wadByteToInt(wadFile, DIRECTORY_POINTER_OFFSET);
     }

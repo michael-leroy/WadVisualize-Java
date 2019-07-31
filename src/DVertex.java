@@ -1,4 +1,6 @@
-
+/**
+ * Basic object to store WAD vertexes.
+ */
 public class DVertex {
 
     private int y;
@@ -12,8 +14,6 @@ public class DVertex {
         this.x = x;
     }
 
-
-
     public int getY() {
         return this.y;
     }
@@ -21,6 +21,5 @@ public class DVertex {
     public void setY(int y) {
         this.y = y;
     }
-
 
 }

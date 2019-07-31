@@ -3,13 +3,11 @@ import java.awt.geom.Line2D;
 import java.io.RandomAccessFile;
 import java.util.List;
 
+/**
+ * Entry point for program used currently to test MAPGUI and WADREADER.
+ */
 public class Main {
     public static void main(final String[] argv) {
-
-        Line[] polyArr = {new Line(200, 600, 600, 200),
-                new Line(400, 800, 800, 400),};
-
-        //Line cordArr = levelOne.getRoot().getKey();
 
         final String doomSharewarePath = "src/doom1.wad";
 
@@ -86,11 +84,7 @@ public class Main {
             System.out.println(e);
         }
 
-
-
         MapGui theGui = new MapGui();
-
-
 
     }
 }
